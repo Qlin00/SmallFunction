@@ -1,0 +1,128 @@
+
+        var originalId = 0;
+        var weiboAutoCommentTool = (function(){
+
+            //评论内容list【可根据具体微博情况自行修改，注意文本与文本之间用英文字符'和,间隔开】
+            var contentList = ['哈哈','哈哈哈','哈哈哈哈'];
+            var running = false;
+
+            var defaultOption = {
+
+                id:'0',
+                //每轮刷新间隔,默认为1s
+                interval: 1000,
+            };
+
+            var needCommentIdList = [];
+            var commentedIdList = [];
+
+            var dateFormat = function (fmt,date){
+                var o = {
+                    "M+" : date.getMonth()+1, //月份
+                    "d+" : date.getDate(), //日
+                    "h+" : date.getHours(), //小时
+                    "m+" : date.getMinutes(), //分
+                    "s+" : date.getSeconds(), //秒
+                    "q+" : Math.floor((date.getMonth()+3)/3), //季度
+                    "S" : date.getMilliseconds() //毫秒
+                };
+                if(/(y+)/.test(fmt))
+                    fmt=fmt.replace(RegExp.$1, (date.getFullYear()+"").substr(4 - RegExp.$1.length));
+                for(var k in o)
+                    if(new RegExp("("+ k +")").test(fmt))
+                        fmt = fmt.replace(RegExp.$1, (RegExp.$1.length==1) ? (o[k]) : (("00"+ o[k]).substr((""+ o[k]).length)));
+                return fmt;
+            }
+            var logger = function(msg){
+            console.log(dateFormat('yyyy-MM-dd hh:mm:ss', new Date()) + ": " + msg);
+            };
+
+
+            var comment = function(id){
+                logger("Commenting " + id);
+                var feedItem = document.querySelector('div[mid="' + id + '"]');
+                var commentButton = feedItem.querySelector('a[action-type="fl_comment"]');
+
+                //没有打开的话，模拟点击打开
+                if(commentButton.parentNode.className != "curr") {
+                    commentButton.click();
+                logger("Comment list is not loaded, start loading...");
+                }
+
+                logger("Waiting comment list loading...");
+
+                //等待评论框出现
+                setTimeout(function(){
+                    var textArea = feedItem.querySelector('.W_input');
+                    let commentContent = contentList[Math.floor(contentList.length*Math.random())];
+                    textArea.value = commentContent;
+                    
+                    var sendButton = feedItem.querySelector('.W_btn_a');
+                    sendButton.click();
+                    logger("Sending comment content completed.");
+                    //折叠起来
+                    commentButton.click();
+                    commentedIdList.push(dateFormat('yyyy-MM-dd hh:mm:ss', new Date()) + ' : '+ commentContent);
+                    logger("<-----------------------------------------");
+                }, 1000);
+            };
+
+            
+
+            this.start = async function(op){
+                needCommentIdList = [];
+                commentedIdList = [];
+                logger("WeiboAutoCommentTool start running...");
+                
+                if(typeof(op) !== "undefined") {
+                    defaultOption.id = op.id;
+                    defaultOption.interval = op.interval || defaultOption.interval;
+                    logger("Use option: " + JSON.stringify(defaultOption));
+                } 
+                else {
+                logger("Use default option: " + JSON.stringify(defaultOption));
+                }
+                logger("WeiboAutoCommentTool running now.");
+
+                running = true;
+
+                var repeatAction = function(){
+                    curId = document.getElementsByClassName("WB_cardwrap WB_feed_type S_bg2 WB_feed_like ")[0].getAttribute("mid");
+                    if(curId !== defaultOption.id){
+                        comment(curId);
+                        defaultOption.id = curId;
+                        running = false;
+                    }
+                    setTimeout(function(){
+                        if(!running) {
+                            running = false;
+                            logger("Finish comment, exit.");
+                            return;
+                        }
+                    
+                        var allButton = document.querySelector('li[node-type="tab_all"]').firstChild.nextSibling;
+                        allButton.click();
+                        repeatAction();
+                    }, defaultOption.interval);
+                };
+                repeatAction();
+            };
+
+            this.stop = function(){
+                running = false;
+                needCommentIdList = [];
+                logger("User stoped");
+            };
+
+            return this;
+        })();
+
+
+        originalId = document.getElementsByClassName("WB_cardwrap WB_feed_type S_bg2 WB_feed_like ")[0].getAttribute("mid");
+
+        weiboAutoCommentTool.start({
+            interval: 1000,
+            id: originalId,
+        });
+
+
